@@ -3,6 +3,7 @@ from uuid import uuid4
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.schemas.documents import DocumentUploadResponse
+from app.services.document_storage import save_document
 
 
 router = APIRouter(
@@ -38,8 +39,16 @@ async def upload_document(
             detail="The uploaded file is empty.",
         )
 
+    document_id = str(uuid4())
+
+    save_document(
+        document_id=document_id,
+        filename=file.filename or "unknown",
+        content=content,
+    )
+
     return DocumentUploadResponse(
-        document_id=str(uuid4()),
+        document_id=document_id,
         filename=file.filename or "unknown",
         content_type=file.content_type or "application/octet-stream",
         size=len(content),

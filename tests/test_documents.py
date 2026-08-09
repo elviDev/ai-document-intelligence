@@ -6,7 +6,14 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_upload_pdf():
+def test_upload_pdf(monkeypatch, tmp_path):
+    storage_directory = tmp_path / "documents"
+
+    monkeypatch.setattr(
+        "app.services.document_storage.STORAGE_DIRECTORY",
+        storage_directory,
+    )
+
     file_content = b"fake pdf content"
 
     response = client.post(
@@ -30,6 +37,15 @@ def test_upload_pdf():
     assert data["status"] == "uploaded"
     assert "document_id" in data
 
+    stored_file = (
+        storage_directory
+        / f"{data['document_id']}_test.pdf"
+    )
+
+    assert stored_file.exists()
+    assert stored_file.read_bytes() == file_content
+
+
 def test_upload_unsupported_file_type():
     file_content = b"fake image content"
 
@@ -48,6 +64,7 @@ def test_upload_unsupported_file_type():
     assert response.json()["detail"] == (
         "Unsupported file type. Only PDF and DOCX files are allowed."
     )
+
 
 def test_upload_empty_file():
     response = client.post(

@@ -21,3 +21,6 @@ htmlcov/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Uploaded documents
+storage/documents/
