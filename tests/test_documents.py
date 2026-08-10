@@ -1,9 +1,26 @@
-from fastapi.testclient import TestClient
+from io import BytesIO
 
+from fastapi.testclient import TestClient
+from reportlab.pdfgen import canvas
+from sqlalchemy import select
+
+from app.db.models import Document
+from app.db.session import SessionLocal
 from app.main import app
 
 
 client = TestClient(app)
+
+
+def create_test_pdf() -> bytes:
+    buffer = BytesIO()
+
+    pdf = canvas.Canvas(buffer)
+    pdf.drawString(100, 750, "AI Document Intelligence Test PDF")
+    pdf.drawString(100, 730, "This document is used for automated testing.")
+    pdf.save()
+
+    return buffer.getvalue()
 
 
 def test_upload_pdf(monkeypatch, tmp_path):
@@ -14,7 +31,7 @@ def test_upload_pdf(monkeypatch, tmp_path):
         storage_directory,
     )
 
-    file_content = b"fake pdf content"
+    file_content = create_test_pdf()
 
     response = client.post(
         "/documents/upload",
@@ -38,12 +55,25 @@ def test_upload_pdf(monkeypatch, tmp_path):
     assert "document_id" in data
 
     stored_file = (
-        storage_directory
-        / f"{data['document_id']}_test.pdf"
+        storage_directory / f"{data['document_id']}_test.pdf"
     )
 
     assert stored_file.exists()
     assert stored_file.read_bytes() == file_content
+
+    db = SessionLocal()
+
+    try:
+        document = db.execute(
+            select(Document).where(
+                Document.id == data["document_id"]
+            )
+        ).scalar_one()
+
+        assert document.extracted_text
+        assert "AI Document Intelligence Test PDF" in document.extracted_text
+    finally:
+        db.close()
 
 
 def test_upload_unsupported_file_type():
@@ -61,6 +91,7 @@ def test_upload_unsupported_file_type():
     )
 
     assert response.status_code == 400
+
     assert response.json()["detail"] == (
         "Unsupported file type. Only PDF and DOCX files are allowed."
     )
@@ -79,4 +110,5 @@ def test_upload_empty_file():
     )
 
     assert response.status_code == 400
+
     assert response.json()["detail"] == "The uploaded file is empty."

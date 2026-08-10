@@ -9,6 +9,7 @@ from app.db.models import Document
 from app.db.session import get_db
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document_storage import save_document
+from app.services.text_extractor import extract_text
 
 
 router = APIRouter(
@@ -54,14 +55,20 @@ async def upload_document(
         content=content,
     )
 
-    document = Document(
-        id=document_id,
-        filename=file.filename or "unknown",
-        content_type=file.content_type or "application/octet-stream",
-        size=len(content),
-        storage_path=str(storage_path),
-        status="uploaded",
+    extracted_text = extract_text(
+    storage_path,
+    file.content_type or "",
     )
+
+    document = Document(
+    id=document_id,
+    filename=file.filename or "unknown",
+    content_type=file.content_type or "application/octet-stream",
+    size=len(content),
+    storage_path=str(storage_path),
+    status="uploaded",
+    extracted_text=extracted_text,
+)
 
     db.add(document)
     db.commit()
