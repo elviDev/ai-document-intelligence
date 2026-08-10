@@ -1,7 +1,12 @@
-from uuid import uuid4
+from pathlib import Path
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import select 
+from sqlalchemy.orm import Session
 
+from app.db.models import Document
+from app.db.session import get_db
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document_storage import save_document
 
@@ -24,7 +29,9 @@ ALLOWED_CONTENT_TYPES = {
 )
 async def upload_document(
     file: UploadFile = File(...),
+    db: Session = Depends(get_db),
 ) -> DocumentUploadResponse:
+
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=400,
@@ -39,18 +46,105 @@ async def upload_document(
             detail="The uploaded file is empty.",
         )
 
-    document_id = str(uuid4())
+    document_id = uuid4()
 
-    save_document(
-        document_id=document_id,
+    storage_path = save_document(
+        document_id=str(document_id),
         filename=file.filename or "unknown",
         content=content,
     )
 
-    return DocumentUploadResponse(
-        document_id=document_id,
+    document = Document(
+        id=document_id,
         filename=file.filename or "unknown",
         content_type=file.content_type or "application/octet-stream",
         size=len(content),
+        storage_path=str(storage_path),
         status="uploaded",
     )
+
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    return DocumentUploadResponse(
+        document_id=str(document.id),
+        filename=document.filename,
+        content_type=document.content_type,
+        size=document.size,
+        status=document.status,
+    )
+
+@router.get(
+    "",
+    response_model=list[DocumentUploadResponse],
+)
+def list_documents(
+    db: Session = Depends(get_db),
+) -> list[DocumentUploadResponse]:
+
+    documents = db.execute(
+        select(Document).order_by(Document.created_at.desc())
+    ).scalars().all()
+
+    return [
+        DocumentUploadResponse(
+            document_id=str(document.id),
+            filename=document.filename,
+            content_type=document.content_type,
+            size=document.size,
+            status=document.status,
+        )
+        for document in documents
+    ]
+
+@router.get(
+    "/{document_id}",
+    response_model=DocumentUploadResponse,
+)
+def get_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+) -> DocumentUploadResponse:
+
+    document = db.get(Document, document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    return DocumentUploadResponse(
+        document_id=str(document.id),
+        filename=document.filename,
+        content_type=document.content_type,
+        size=document.size,
+        status=document.status,
+    )
+
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+):
+    document = db.get(Document, document_id)
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found.",
+        )
+
+    file_path = Path(document.storage_path)
+
+    if file_path.exists():
+        file_path.unlink()
+
+    db.delete(document)
+    db.commit()
+
+    return {
+        "message": "Document deleted successfully",
+        "document_id": str(document_id),
+    }
