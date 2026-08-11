@@ -13,6 +13,7 @@ from app.schemas.documents import (
 )
 from app.services.document_search import search_document_chunks
 from app.services.document_storage import save_document
+from app.services.embedding_service import generate_embedding
 from app.services.text_chunker import chunk_text
 from app.services.text_extractor import extract_text
 
@@ -82,10 +83,13 @@ async def upload_document(
     chunks = chunk_text(extracted_text)
 
     for index, chunk in enumerate(chunks):
+        embedding = generate_embedding(chunk)
+
         document_chunk = DocumentChunk(
             document_id=document.id,
             chunk_index=index,
             content=chunk,
+            embedding=embedding,
         )
 
         db.add(document_chunk)
