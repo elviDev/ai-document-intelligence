@@ -7,7 +7,11 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Document, DocumentChunk
 from app.db.session import get_db
-from app.schemas.documents import DocumentUploadResponse
+from app.schemas.documents import (
+    DocumentSearchResult,
+    DocumentUploadResponse,
+)
+from app.services.document_search import search_document_chunks
 from app.services.document_storage import save_document
 from app.services.text_chunker import chunk_text
 from app.services.text_extractor import extract_text
@@ -118,6 +122,36 @@ def list_documents(
             status=document.status,
         )
         for document in documents
+    ]
+
+
+@router.get(
+    "/search",
+    response_model=list[DocumentSearchResult],
+)
+def search_documents(
+    q: str,
+    db: Session = Depends(get_db),
+) -> list[DocumentSearchResult]:
+
+    if not q.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Search query cannot be empty.",
+        )
+
+    results = search_document_chunks(
+        db=db,
+        query=q.strip(),
+    )
+
+    return [
+        DocumentSearchResult(
+            document_id=str(chunk.document_id),
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+        )
+        for chunk in results
     ]
 
 

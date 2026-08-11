@@ -7,3 +7,8 @@ class DocumentUploadResponse(BaseModel):
     content_type: str
     size: int
     status: str
+
+class DocumentSearchResult(BaseModel):
+    document_id: str
+    chunk_index: int
+    content: str
