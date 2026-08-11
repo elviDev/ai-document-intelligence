@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from reportlab.pdfgen import canvas
 from sqlalchemy import select
 
-from app.db.models import Document
+from app.db.models import Document, DocumentChunk
 from app.db.session import SessionLocal
 from app.main import app
 
@@ -72,6 +72,51 @@ def test_upload_pdf(monkeypatch, tmp_path):
 
         assert document.extracted_text
         assert "AI Document Intelligence Test PDF" in document.extracted_text
+    finally:
+        db.close()
+
+
+def test_upload_pdf_creates_chunks(monkeypatch, tmp_path):
+    storage_directory = tmp_path / "documents"
+
+    monkeypatch.setattr(
+        "app.services.document_storage.STORAGE_DIRECTORY",
+        storage_directory,
+    )
+
+    file_content = create_test_pdf()
+
+    response = client.post(
+        "/documents/upload",
+        files={
+            "file": (
+                "chunk-test.pdf",
+                file_content,
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    document_id = data["document_id"]
+
+    db = SessionLocal()
+
+    try:
+        chunks = db.execute(
+            select(DocumentChunk)
+            .where(
+                DocumentChunk.document_id == document_id
+            )
+            .order_by(DocumentChunk.chunk_index)
+        ).scalars().all()
+
+        assert len(chunks) > 0
+        assert chunks[0].chunk_index == 0
+        assert "AI Document Intelligence Test PDF" in chunks[0].content
+
     finally:
         db.close()
 

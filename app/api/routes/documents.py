@@ -2,13 +2,14 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy import select 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Document
+from app.db.models import Document, DocumentChunk
 from app.db.session import get_db
 from app.schemas.documents import DocumentUploadResponse
 from app.services.document_storage import save_document
+from app.services.text_chunker import chunk_text
 from app.services.text_extractor import extract_text
 
 
@@ -56,23 +57,36 @@ async def upload_document(
     )
 
     extracted_text = extract_text(
-    storage_path,
-    file.content_type or "",
+        storage_path,
+        file.content_type or "",
     )
 
     document = Document(
-    id=document_id,
-    filename=file.filename or "unknown",
-    content_type=file.content_type or "application/octet-stream",
-    size=len(content),
-    storage_path=str(storage_path),
-    status="uploaded",
-    extracted_text=extracted_text,
-)
+        id=document_id,
+        filename=file.filename or "unknown",
+        content_type=file.content_type or "application/octet-stream",
+        size=len(content),
+        storage_path=str(storage_path),
+        status="uploaded",
+        extracted_text=extracted_text,
+    )
 
     db.add(document)
     db.commit()
     db.refresh(document)
+
+    chunks = chunk_text(extracted_text)
+
+    for index, chunk in enumerate(chunks):
+        document_chunk = DocumentChunk(
+            document_id=document.id,
+            chunk_index=index,
+            content=chunk,
+        )
+
+        db.add(document_chunk)
+
+    db.commit()
 
     return DocumentUploadResponse(
         document_id=str(document.id),
@@ -81,6 +95,7 @@ async def upload_document(
         size=document.size,
         status=document.status,
     )
+
 
 @router.get(
     "",
@@ -104,6 +119,7 @@ def list_documents(
         )
         for document in documents
     ]
+
 
 @router.get(
     "/{document_id}",
@@ -129,6 +145,7 @@ def get_document(
         size=document.size,
         status=document.status,
     )
+
 
 @router.delete("/{document_id}")
 def delete_document(
