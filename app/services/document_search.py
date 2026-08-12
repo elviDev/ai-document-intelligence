@@ -32,14 +32,16 @@ def semantic_search_document_chunks(
     query: str,
     document_id: UUID | None = None,
     limit: int = 5,
-) -> list[DocumentChunk]:
+) -> list[tuple[DocumentChunk, float]]:
     query_embedding = generate_embedding(query)
 
     distance = DocumentChunk.embedding.cosine_distance(query_embedding)
 
-    statement = (
-        select(DocumentChunk)
-        .where(DocumentChunk.embedding.is_not(None))
+    statement = select(
+        DocumentChunk,
+        (1 - distance).label("similarity"),
+    ).where(
+        DocumentChunk.embedding.is_not(None)
     )
 
     if document_id is not None:
@@ -53,4 +55,4 @@ def semantic_search_document_chunks(
         .limit(limit)
     )
 
-    return db.execute(statement).scalars().all()
+    return db.execute(statement).all()

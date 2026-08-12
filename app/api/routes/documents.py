@@ -10,8 +10,12 @@ from app.db.session import get_db
 from app.schemas.documents import (
     DocumentSearchResult,
     DocumentUploadResponse,
+    SemanticSearchResult,
 )
-from app.services.document_search import search_document_chunks
+from app.services.document_search import (
+    search_document_chunks,
+    semantic_search_document_chunks,
+)
 from app.services.document_storage import save_document
 from app.services.embedding_service import generate_embedding
 from app.services.text_chunker import chunk_text
@@ -156,6 +160,37 @@ def search_documents(
             content=chunk.content,
         )
         for chunk in results
+    ]
+
+
+@router.get(
+    "/semantic-search",
+    response_model=list[SemanticSearchResult],
+)
+def semantic_search_documents(
+    q: str,
+    db: Session = Depends(get_db),
+) -> list[SemanticSearchResult]:
+
+    if not q.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Search query cannot be empty.",
+        )
+
+    results = semantic_search_document_chunks(
+        db=db,
+        query=q.strip(),
+    )
+
+    return [
+        SemanticSearchResult(
+            document_id=str(chunk.document_id),
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+            similarity=float(similarity),
+        )
+        for chunk, similarity in results
     ]
 
 
