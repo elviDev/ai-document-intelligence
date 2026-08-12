@@ -20,3 +20,11 @@ class SemanticSearchResult(BaseModel):
     chunk_index: int
     content: str
     similarity: float
+
+class DocumentAskRequest(BaseModel):
+    question: str
+
+
+class DocumentAskResponse(BaseModel):
+    answer: str
+    sources: list[SemanticSearchResult]

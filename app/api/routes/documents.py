@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from app.db.models import Document, DocumentChunk
 from app.db.session import get_db
 from app.schemas.documents import (
+    DocumentAskRequest,
+    DocumentAskResponse,
     DocumentSearchResult,
     DocumentUploadResponse,
     SemanticSearchResult,
@@ -20,6 +22,10 @@ from app.services.document_storage import save_document
 from app.services.embedding_service import generate_embedding
 from app.services.text_chunker import chunk_text
 from app.services.text_extractor import extract_text
+
+from app.services.context_builder import build_context
+from app.services.llm_service import generate_answer
+from app.services.rag_retriever import retrieve_relevant_chunks
 
 
 router = APIRouter(
@@ -193,6 +199,57 @@ def semantic_search_documents(
         for chunk, similarity in results
     ]
 
+@router.post(
+    "/ask",
+    response_model=DocumentAskResponse,
+)
+def ask_documents(
+    request: DocumentAskRequest,
+    db: Session = Depends(get_db),
+) -> DocumentAskResponse:
+
+    question = request.question.strip()
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty.",
+        )
+
+    results = retrieve_relevant_chunks(
+        db=db,
+        query=question,
+        limit=5,
+        min_similarity=0.30,
+    )
+
+    if not results:
+        return DocumentAskResponse(
+            answer="I could not find relevant information in the provided documents.",
+            sources=[],
+        )
+
+    context = build_context(results)
+
+    answer = generate_answer(
+        question=question,
+        context=context,
+    )
+
+    sources = [
+        SemanticSearchResult(
+            document_id=str(chunk.document_id),
+            chunk_index=chunk.chunk_index,
+            content=chunk.content,
+            similarity=float(similarity),
+        )
+        for chunk, similarity in results
+    ]
+
+    return DocumentAskResponse(
+        answer=answer,
+        sources=sources,
+    )
 
 @router.get(
     "/{document_id}",
