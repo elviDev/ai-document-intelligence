@@ -24,3 +24,6 @@ Thumbs.db
 
 # Uploaded documents
 storage/documents/
+
+# Local database backup
+ai_documents_backup.sql
