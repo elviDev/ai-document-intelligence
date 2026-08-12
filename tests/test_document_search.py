@@ -49,6 +49,7 @@ def test_search_document_chunks():
         results = search_document_chunks(
             db=db,
             query="Python",
+            document_id=document_id,
         )
 
         assert len(results) == 1
