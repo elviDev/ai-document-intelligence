@@ -12,12 +12,13 @@ def generate_answer(
 ) -> str:
     response = client.responses.create(
         model="gpt-5-mini",
-        instructions=(
+        instructions = (
             "You are an AI document assistant. "
-            "Answer the user's question using only the provided document context. "
-            "If the answer cannot be found in the context, say that the information "
-            "is not available in the provided documents. "
-            "Do not invent facts."
+            "Use only the supplied document context. "
+            "Never invent facts or use outside knowledge. "
+            "If the user asks for a summary, summarize only the supplied document context. "
+            "Do not claim that information exists unless it appears in the context. "
+            "When summarizing, organize the answer clearly using the document's actual content."
         ),
         input=(
             f"Document context:\n\n{context}\n\n"

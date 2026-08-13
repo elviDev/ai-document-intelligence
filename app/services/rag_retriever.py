@@ -6,16 +6,12 @@ from app.db.models import DocumentChunk
 from app.services.document_search import semantic_search_document_chunks
 
 
-DEFAULT_LIMIT = 5
-DEFAULT_MIN_SIMILARITY = 0.30
-
-
 def retrieve_relevant_chunks(
     db: Session,
     query: str,
     document_id: UUID | None = None,
-    limit: int = DEFAULT_LIMIT,
-    min_similarity: float = DEFAULT_MIN_SIMILARITY,
+    limit: int = 5,
+    min_similarity: float = 0.30,
 ) -> list[tuple[DocumentChunk, float]]:
     results = semantic_search_document_chunks(
         db=db,
@@ -28,4 +24,21 @@ def retrieve_relevant_chunks(
         (chunk, similarity)
         for chunk, similarity in results
         if similarity >= min_similarity
+    ]
+
+
+def retrieve_document_chunks(
+    db: Session,
+    document_id: UUID,
+) -> list[tuple[DocumentChunk, float]]:
+    results = (
+        db.query(DocumentChunk)
+        .filter(DocumentChunk.document_id == document_id)
+        .order_by(DocumentChunk.chunk_index.asc())
+        .all()
+    )
+
+    return [
+        (chunk, 1.0)
+        for chunk in results
     ]

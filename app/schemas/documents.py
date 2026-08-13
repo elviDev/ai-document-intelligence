@@ -23,8 +23,18 @@ class SemanticSearchResult(BaseModel):
 
 class DocumentAskRequest(BaseModel):
     question: str
+    document_id: str | None = None
 
 
 class DocumentAskResponse(BaseModel):
     answer: str
     sources: list[SemanticSearchResult]
+    
+
+class DocumentDetailResponse(BaseModel):
+    document_id: str
+    filename: str
+    content_type: str
+    size: int
+    status: str
+    extracted_text: str

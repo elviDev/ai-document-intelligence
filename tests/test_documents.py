@@ -157,3 +157,57 @@ def test_upload_empty_file():
     assert response.status_code == 400
 
     assert response.json()["detail"] == "The uploaded file is empty."
+
+def test_upload_document_with_no_extractable_text(
+    monkeypatch,
+    tmp_path,
+):
+    storage_directory = tmp_path / "documents"
+
+    monkeypatch.setattr(
+        "app.services.document_storage.STORAGE_DIRECTORY",
+        storage_directory,
+    )
+
+    monkeypatch.setattr(
+        "app.api.routes.documents.extract_text",
+        lambda file_path, content_type: "",
+    )
+
+    file_content = b"fake pdf bytes"
+
+    response = client.post(
+        "/documents/upload",
+        files={
+            "file": (
+                "scanned.pdf",
+                file_content,
+                "application/pdf",
+            )
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["detail"] == (
+        "No readable text could be extracted from the document. "
+        "Scanned or image-only documents are not currently supported."
+    )
+
+    stored_file = list(storage_directory.glob("*"))
+
+    assert stored_file == []
+
+    db = SessionLocal()
+
+    try:
+        document = db.execute(
+            select(Document).where(
+                Document.filename == "scanned.pdf"
+            )
+        ).scalar_one_or_none()
+
+        assert document is None
+
+    finally:
+        db.close()
