@@ -81,3 +81,58 @@ def test_retrieve_relevant_chunks_respects_document_id():
         chunk.document_id == document_a_id
         for chunk, _ in results
     )
+
+def test_retrieve_relevant_chunks_falls_back_to_best_result_for_selected_document():
+    document_id = uuid4()
+
+    chunk = DocumentChunk(
+        document_id=document_id,
+        chunk_index=0,
+        content="The conclusion summarizes the main lesson.",
+    )
+
+    fake_results = [
+        (chunk, 0.18),
+    ]
+
+    with patch(
+        "app.services.rag_retriever.semantic_search_document_chunks",
+        return_value=fake_results,
+    ):
+        results = retrieve_relevant_chunks(
+            db=None,
+            query="What is the conclusion?",
+            document_id=document_id,
+            limit=5,
+            min_similarity=0.30,
+        )
+
+    assert results == fake_results
+
+
+def test_retrieve_relevant_chunks_does_not_fallback_without_selected_document():
+    document_id = uuid4()
+
+    chunk = DocumentChunk(
+        document_id=document_id,
+        chunk_index=0,
+        content="The conclusion summarizes the main lesson.",
+    )
+
+    fake_results = [
+        (chunk, 0.18),
+    ]
+
+    with patch(
+        "app.services.rag_retriever.semantic_search_document_chunks",
+        return_value=fake_results,
+    ):
+        results = retrieve_relevant_chunks(
+            db=None,
+            query="What is the conclusion?",
+            document_id=None,
+            limit=5,
+            min_similarity=0.30,
+        )
+
+    assert results == []

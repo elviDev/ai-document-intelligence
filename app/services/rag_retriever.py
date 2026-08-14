@@ -20,11 +20,22 @@ def retrieve_relevant_chunks(
         limit=limit,
     )
 
-    return [
+    filtered_results = [
         (chunk, similarity)
         for chunk, similarity in results
         if similarity >= min_similarity
     ]
+
+    if filtered_results:
+        return filtered_results
+
+    # When a specific document is selected, fall back to the
+    # best available chunk from that document instead of claiming
+    # that no information exists.
+    if document_id is not None and results:
+        return [results[0]]
+
+    return []
 
 
 def retrieve_document_chunks(
