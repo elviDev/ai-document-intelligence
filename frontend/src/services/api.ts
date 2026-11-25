@@ -1,4 +1,65 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL_STORAGE_KEY = "docintel.apiBaseUrl";
+const DEFAULT_API_BASE_URL = (() => {
+  const configuredUrl =
+    import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
+
+  try {
+    return normalizeApiBaseUrl(configuredUrl);
+  } catch {
+    return "http://127.0.0.1:8000";
+  }
+})();
+
+export type ApiHealth = {
+  status: string;
+  service: string;
+  version: string;
+};
+
+export function normalizeApiBaseUrl(value: string): string {
+  let url: URL;
+
+  try {
+    url = new URL(value.trim());
+  } catch {
+    throw new Error("Enter a valid API URL, including http:// or https://.");
+  }
+
+  if (
+    (url.protocol !== "http:" && url.protocol !== "https:") ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "The API URL must use HTTP or HTTPS and cannot include credentials, a query, or a fragment.",
+    );
+  }
+
+  return url.toString().replace(/\/+$/, "");
+}
+
+export function getApiBaseUrl(): string {
+  const savedUrl = window.localStorage.getItem(API_BASE_URL_STORAGE_KEY);
+
+  if (!savedUrl) {
+    return DEFAULT_API_BASE_URL;
+  }
+
+  try {
+    return normalizeApiBaseUrl(savedUrl);
+  } catch {
+    window.localStorage.removeItem(API_BASE_URL_STORAGE_KEY);
+    return DEFAULT_API_BASE_URL;
+  }
+}
+
+export function saveApiBaseUrl(value: string): string {
+  const normalizedUrl = normalizeApiBaseUrl(value);
+  window.localStorage.setItem(API_BASE_URL_STORAGE_KEY, normalizedUrl);
+  return normalizedUrl;
+}
 
 export type Document = {
   document_id: string;
@@ -30,6 +91,39 @@ export type AskResponse = {
   sources: SemanticSearchResult[];
 };
 
+export async function checkApiHealth(
+  baseUrl: string = getApiBaseUrl(),
+): Promise<ApiHealth> {
+  const response = await fetch(`${normalizeApiBaseUrl(baseUrl)}/health`);
+
+  if (!response.ok) {
+    throw new Error(
+      await parseError(response, "Could not connect to the API."),
+    );
+  }
+
+  const data: unknown = await response.json();
+
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("status" in data) ||
+    typeof data.status !== "string" ||
+    !("service" in data) ||
+    typeof data.service !== "string" ||
+    !("version" in data) ||
+    typeof data.version !== "string"
+  ) {
+    throw new Error("The API returned an invalid health response.");
+  }
+
+  return {
+    status: data.status,
+    service: data.service,
+    version: data.version,
+  };
+}
+
 async function parseError(
   response: Response,
   fallback: string,
@@ -44,7 +138,7 @@ async function parseError(
 }
 
 export async function getDocuments(): Promise<Document[]> {
-  const response = await fetch(`${API_BASE_URL}/documents`);
+  const response = await fetch(`${getApiBaseUrl()}/documents`);
 
   if (!response.ok) {
     throw new Error(
@@ -59,7 +153,7 @@ export async function getDocument(
   documentId: string,
 ): Promise<DocumentDetail> {
   const response = await fetch(
-    `${API_BASE_URL}/documents/${documentId}`,
+    `${getApiBaseUrl()}/documents/${documentId}`,
   );
 
   if (!response.ok) {
@@ -78,7 +172,7 @@ export async function uploadDocument(
   formData.append("file", file);
 
   const response = await fetch(
-    `${API_BASE_URL}/documents/upload`,
+    `${getApiBaseUrl()}/documents/upload`,
     {
       method: "POST",
       body: formData,
@@ -98,7 +192,7 @@ export async function deleteDocument(
   documentId: string,
 ): Promise<void> {
   const response = await fetch(
-    `${API_BASE_URL}/documents/${documentId}`,
+    `${getApiBaseUrl()}/documents/${documentId}`,
     {
       method: "DELETE",
     },
@@ -115,7 +209,7 @@ export async function searchDocuments(
   query: string,
 ): Promise<DocumentSearchResult[]> {
   const response = await fetch(
-    `${API_BASE_URL}/documents/search?q=${encodeURIComponent(query)}`,
+    `${getApiBaseUrl()}/documents/search?q=${encodeURIComponent(query)}`,
   );
 
   if (!response.ok) {
@@ -131,7 +225,7 @@ export async function semanticSearchDocuments(
   query: string,
 ): Promise<SemanticSearchResult[]> {
   const response = await fetch(
-    `${API_BASE_URL}/documents/semantic-search?q=${encodeURIComponent(query)}`,
+    `${getApiBaseUrl()}/documents/semantic-search?q=${encodeURIComponent(query)}`,
   );
 
   if (!response.ok) {
@@ -162,7 +256,7 @@ export async function askDocuments(
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/documents/ask`,
+    `${getApiBaseUrl()}/documents/ask`,
     {
       method: "POST",
       headers: {

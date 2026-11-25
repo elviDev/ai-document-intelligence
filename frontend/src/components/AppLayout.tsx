@@ -1,5 +1,5 @@
-import { Bell, Bot, FileText, LayoutDashboard, Settings } from "lucide-react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Bot, FileText, LayoutDashboard, Settings } from "lucide-react";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 function AppLayout() {
   return (
@@ -57,25 +57,20 @@ function AppLayout() {
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="storage-card">
+          <Link to="/settings" className="storage-card settings-connection-link">
             <div className="storage-header">
-              <span>Storage</span>
-              <strong>24%</strong>
+              <span>API connection</span>
+              <Settings size={15} />
             </div>
-
-            <div className="storage-bar">
-              <div className="storage-fill" />
-            </div>
-
-            <p>2.4 GB of 10 GB used</p>
-          </div>
+            <p>Configure service URL</p>
+          </Link>
 
           <div className="user-card">
-            <div className="avatar">IE</div>
+            <div className="avatar">LW</div>
 
             <div className="user-card-info">
-              <strong>Ifeanyi Elvis Okeke</strong>
-              <span>Free workspace</span>
+              <strong>Local workspace</strong>
+              <span>Single-user MVP</span>
             </div>
           </div>
         </div>
@@ -89,18 +84,14 @@ function AppLayout() {
           </div>
 
           <div className="topbar-actions">
-            <button
-              type="button"
-              className="notification-button"
-              aria-label="Notifications"
+            <Link
+              to="/settings"
+              className="profile-pill"
+              aria-label="API settings"
             >
-              <Bell size={18} />
-            </button>
-
-            <div className="profile-pill">
-              <span className="avatar small">IE</span>
-              <span>Ifeanyi Elvis</span>
-            </div>
+              <Settings size={16} />
+              <span>API settings</span>
+            </Link>
           </div>
         </header>
 

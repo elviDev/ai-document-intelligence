@@ -1,32 +1,37 @@
-# React + TypeScript + Vite
+# DocIntel frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The DocIntel frontend is a React, TypeScript, and Vite application for the AI
+Document Intelligence API. It provides a dashboard, document library and
+search, document details, and document-specific AI chat.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Start the API and PostgreSQL service using the setup instructions in the
+   repository's root [README](../README.md).
+2. From this directory, install dependencies and start Vite:
 
-## React Compiler
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+3. Open the local URL printed by Vite (by default, `http://localhost:5173`).
 
-## Expanding the Oxlint configuration
+The frontend uses `http://127.0.0.1:8000` as its default API URL. To change the
+build-time default, copy `.env.example` to `.env.local` and set
+`VITE_API_BASE_URL`. You can also change the API URL in **Settings**; that value
+is saved in the current browser and takes precedence over the environment
+variable. The API must allow requests from the frontend origin through CORS.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+## Available commands
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm run dev
+npm run build
+npm run lint
+npm run preview
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The current MVP supports PDF and DOCX uploads, keyword and semantic search,
+document management, and source-aware question answering. It does not include
+user accounts or persistent per-user preferences.
